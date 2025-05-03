@@ -2,8 +2,15 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Inicializar o cliente do Supabase com valores das variáveis de ambiente
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://tzthwulrxbhgwkmzgyra.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6dGh3dWxyeGJoZ3drbXpneXJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5Njc5NzgsImV4cCI6MjA2MTU0Mzk3OH0.ymr4ZFsWCa9mFV4Ty9MgEZ5DvcDN6rTPCDZcEUIiOo0';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://molulxnizauiqaeguusv.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vbHVseG5pemF1aXFhZWd1dXN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyMzM5NTUsImV4cCI6MjA2MTgwOTk1NX0.eNmDdswfTdXQxThbt8mY44SfYbewP1VfAlCBfunE0WU';
+
+// Adicionar console.log para verificar as variáveis de ambiente
+console.log("Variáveis de ambiente do Supabase:");
+console.log("VITE_SUPABASE_URL:", import.meta.env.VITE_SUPABASE_URL ? "Configurada" : "Não configurada");
+console.log("VITE_SUPABASE_ANON_KEY:", import.meta.env.VITE_SUPABASE_ANON_KEY ? "Configurada" : "Não configurada");
+console.log("URL utilizada:", supabaseUrl);
+console.log("Chave utilizada:", supabaseKey.substring(0, 10) + "...");
 
 // Verificar se as credenciais estão disponíveis
 if (!supabaseUrl || !supabaseKey) {

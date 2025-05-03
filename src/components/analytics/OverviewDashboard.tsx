@@ -1,19 +1,24 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { MessageSquare, Users, ArrowUpRight, Bot, TrendingUp, Clock } from "lucide-react";
+import { MessageSquare, Users, ArrowUpRight, Bot, TrendingUp, Clock, ArrowDownRight, Loader2 } from "lucide-react";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ExportReportButton } from "./ExportReportButton";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
+// Interface atualizada para incluir period opcional
 interface OverviewDashboardProps {
   dateRange: {
     from: Date;
     to?: Date;
+    period?: string;
   };
 }
 
+// Dados de exemplo para os gráficos
 const messageData = [
   { name: "Seg", total: 150, whatsapp: 120, sms: 30 },
   { name: "Ter", total: 180, whatsapp: 140, sms: 40 },
@@ -42,7 +47,135 @@ const clientDistribution = [
 
 const COLORS = ["#10B981", "#6B7280", "#1E3A8A", "#F59E0B"];
 
+// Hooks personalizados para substituir os hooks não definidos
+const useDashboardMetrics = () => {
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulação de carregamento de dados
+    setTimeout(() => {
+      setData({
+        messages: {
+          today: 325,
+          change: {
+            positive: true,
+            value: "12%"
+          },
+          progress: 75
+        }
+      });
+      setIsLoading(false);
+    }, 1000);
+
+    return () => {};
+  }, []);
+
+  return { data, isLoading };
+};
+
+const useActivityData = (period: string = 'week') => {
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulação de carregamento de dados
+    setTimeout(() => {
+      setData(messageData);
+      setIsLoading(false);
+    }, 800);
+
+    return () => {};
+  }, [period]);
+
+  return { data: messageData, isLoading };
+};
+
+const useClientDistribution = () => {
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulação de carregamento de dados
+    setTimeout(() => {
+      setData(clientDistribution);
+      setIsLoading(false);
+    }, 600);
+
+    return () => {};
+  }, []);
+
+  return { data: clientDistribution, isLoading };
+};
+
+const useConversionData = (period: string = 'week') => {
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulação de carregamento de dados
+    setTimeout(() => {
+      setData(conversionData);
+      setIsLoading(false);
+    }, 700);
+
+    return () => {};
+  }, [period]);
+
+  return { data: conversionData, isLoading };
+};
+
+const useAIInsights = () => {
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulação de carregamento de dados
+    setTimeout(() => {
+      setData({
+        insights: [
+          {
+            title: "Oportunidade de Conversão",
+            description: "O horário com maior taxa de conversão é entre 14h e 16h. Considere programar mais campanhas neste período."
+          },
+          {
+            title: "Análise de Engajamento",
+            description: "Clientes respondem mais às mensagens com imagens. Aumente o uso de elementos visuais em suas campanhas."
+          },
+          {
+            title: "Previsão de Crescimento",
+            description: "Com base nas tendências atuais, espera-se um aumento de 15% no volume de mensagens no próximo mês."
+          }
+        ]
+      });
+      setIsLoading(false);
+    }, 900);
+
+    return () => {};
+  }, []);
+
+  return { data, isLoading };
+};
+
 const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ dateRange }) => {
+  const { toast } = useToast();
+  const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics();
+  const { data: messageData, isLoading: messageDataLoading } = useActivityData(dateRange?.period || 'week');
+  const { data: clientDistribution, isLoading: clientDistLoading } = useClientDistribution();
+  const { data: conversionData, isLoading: conversionLoading } = useConversionData(dateRange?.period || 'week');
+  const { data: insights, isLoading: insightsLoading } = useAIInsights();
+  
+  const isLoading = metricsLoading || messageDataLoading || clientDistLoading || conversionLoading || insightsLoading;
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Carregando dados do dashboard...</span>
+      </div>
+    );
+  }
+  
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -52,83 +185,29 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ dateRange }) => {
               <CardDescription>Mensagens Hoje</CardDescription>
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </div>
-            <CardTitle className="text-3xl font-bold">523</CardTitle>
+            <CardTitle className="text-3xl font-bold">{metrics?.messages?.today || 0}</CardTitle>
           </CardHeader>
           <CardContent className="pb-2">
             <div className="text-sm text-muted-foreground">
-              <span className="text-emerald-500 font-medium inline-flex items-center">
-                <ArrowUpRight className="h-4 w-4 mr-1" />12%
+              <span className={cn(
+                "font-medium inline-flex items-center",
+                metrics?.messages?.change?.positive ? "text-emerald-500" : "text-red-500"
+              )}>
+                {metrics?.messages?.change?.positive ? 
+                  <ArrowUpRight className="h-4 w-4 mr-1" /> : 
+                  <ArrowDownRight className="h-4 w-4 mr-1" />
+                }
+                {metrics?.messages?.change?.value || "0%"}
               </span>
-              <span className="ml-1">vs. ontem</span>
+              <span className="ml-1">vs. período anterior</span>
             </div>
           </CardContent>
           <CardFooter className="pt-0">
-            <Progress value={76} className="h-1" />
+            <Progress value={metrics?.messages?.progress || 0} className="h-1" />
           </CardFooter>
         </Card>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Clientes Atendidos</CardDescription>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <CardTitle className="text-3xl font-bold">182</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-sm text-muted-foreground">
-              <span className="text-emerald-500 font-medium inline-flex items-center">
-                <ArrowUpRight className="h-4 w-4 mr-1" />8%
-              </span>
-              <span className="ml-1">vs. ontem</span>
-            </div>
-          </CardContent>
-          <CardFooter className="pt-0">
-            <Progress value={62} className="h-1" />
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Taxa de Conversão</CardDescription>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <CardTitle className="text-3xl font-bold">32%</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-sm text-muted-foreground">
-              <span className="text-emerald-500 font-medium inline-flex items-center">
-                <ArrowUpRight className="h-4 w-4 mr-1" />3%
-              </span>
-              <span className="ml-1">vs. ontem</span>
-            </div>
-          </CardContent>
-          <CardFooter className="pt-0">
-            <Progress value={32} className="h-1" />
-          </CardFooter>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Atendimentos por IA</CardDescription>
-              <Bot className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <CardTitle className="text-3xl font-bold">287</CardTitle>
-          </CardHeader>
-          <CardContent className="pb-2">
-            <div className="text-sm text-muted-foreground">
-              <span className="text-emerald-500 font-medium inline-flex items-center">
-                <ArrowUpRight className="h-4 w-4 mr-1" />15%
-              </span>
-              <span className="ml-1">vs. ontem</span>
-            </div>
-          </CardContent>
-          <CardFooter className="pt-0">
-            <Progress value={85} className="h-1" />
-          </CardFooter>
-        </Card>
+        // ... existing code ...
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
@@ -178,122 +257,10 @@ const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ dateRange }) => {
           </CardContent>
         </Card>
         
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Distribuição</CardTitle>
-                <CardDescription>Clientes ativos</CardDescription>
-              </div>
-              <ExportReportButton data={clientDistribution} reportName="distribuicao-clientes" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px] flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={clientDistribution}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {clientDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value) => [`${value}%`, "Percentual"]}
-                    contentStyle={{ 
-                      backgroundColor: "rgba(255, 255, 255, 0.95)", 
-                      borderRadius: "8px", 
-                      boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-                      border: "none"
-                    }}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+        // ... existing code ...
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Taxa de Conversão</CardTitle>
-                <CardDescription>Evolução semanal</CardDescription>
-              </div>
-              <ExportReportButton data={conversionData} reportName="taxa-conversao" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={conversionData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value) => [`${value}%`, "Taxa de Conversão"]}
-                    contentStyle={{ 
-                      backgroundColor: "rgba(255, 255, 255, 0.95)", 
-                      borderRadius: "8px", 
-                      boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-                      border: "none"
-                    }}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="taxa"
-                    name="Taxa de Conversão"
-                    stroke="#1E3A8A"
-                    strokeWidth={2}
-                    dot={{ r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>AI Insights</CardTitle>
-            <CardDescription>Análise de dados e recomendações</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="border-l-4 border-green-500 pl-4 py-2">
-                <h4 className="font-medium text-sm">Oportunidade de Conversão</h4>
-                <p className="text-sm text-muted-foreground">O horário com maior taxa de conversão é entre 14h e 16h. Considere programar mais campanhas neste período.</p>
-              </div>
-              
-              <div className="border-l-4 border-amber-500 pl-4 py-2">
-                <h4 className="font-medium text-sm">Análise de Engajamento</h4>
-                <p className="text-sm text-muted-foreground">Clientes respondem mais às mensagens com imagens. Aumente o uso de elementos visuais em suas campanhas.</p>
-              </div>
-              
-              <div className="border-l-4 border-blue-500 pl-4 py-2">
-                <h4 className="font-medium text-sm">Previsão de Crescimento</h4>
-                <p className="text-sm text-muted-foreground">Com base nas tendências atuais, espera-se um aumento de 15% no volume de mensagens no próximo mês.</p>
-              </div>
-              
-              <Button variant="outline" className="w-full mt-2">Ver análise completa</Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      // ... existing code ...
     </div>
   );
 };

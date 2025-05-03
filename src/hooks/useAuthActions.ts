@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/services/auth/authService';
+import { supabase, resetPassword } from '@/services/auth/authService';
 import { User, Session } from '@supabase/supabase-js';
 import { ensureDeveloperPrivileges } from '@/utils/developerAccess';
 import { toast } from 'sonner';
@@ -149,16 +149,22 @@ export const useAuthActions = () => {
   const requestPasswordReset = useCallback(async (email: string) => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
-      });
+      console.log('Solicitando redefinição de senha para:', email);
       
-      if (error) throw error;
+      // Usar o serviço de autenticação para resetar a senha
+      const { data, error } = await resetPassword(email);
+      
+      if (error) {
+        console.error('Erro detalhado:', error);
+        toast.error(`Erro ao enviar email: ${error.message || 'Erro desconhecido'}`);
+        return { success: false, error: error.message };
+      }
       
       toast.success("E-mail de redefinição de senha enviado!");
       return { success: true, data };
     } catch (error: any) {
-      console.error('Error requesting password reset:', error);
+      console.error('Erro ao solicitar redefinição de senha:', error);
+      toast.error(`Erro inesperado: ${error.message || 'Erro desconhecido'}`);
       return { success: false, error: error.message };
     } finally {
       setIsLoading(false);

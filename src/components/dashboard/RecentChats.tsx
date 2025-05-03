@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -8,10 +7,26 @@ import { useRecentChats } from "@/services/dashboardService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner"; // Importando toast da biblioteca sonner
 
-const RecentChats: React.FC = () => {
-  const { data, isLoading, isError } = useRecentChats();
+const RecentChats = () => {
+  const { data: chats, isLoading, error, refetch } = useRecentChats();
   const navigate = useNavigate();
+  
+  const handleViewDetails = (chatId: string) => {
+    navigate(`/chats/${chatId}`);
+    
+    toast("Navegando para detalhes", {
+      description: `Abrindo detalhes da conversa #${chatId}`
+    });
+  };
+  
+  const handleRefresh = () => {
+    toast("Atualizando conversas", {
+      description: "Buscando conversas mais recentes..."
+    });
+    refetch();
+  };
 
   const navigateToInbox = (chatId: string) => {
     navigate(`/channels/inbox/${chatId}`);
@@ -44,7 +59,7 @@ const RecentChats: React.FC = () => {
     );
   }
 
-  if (isError || !data || data.length === 0) {
+  if (error || !chats || chats.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -65,7 +80,7 @@ const RecentChats: React.FC = () => {
       </CardHeader>
       <CardContent className="px-0">
         <div className="space-y-0">
-          {data.map((chat) => (
+          {chats.map((chat) => (
             <div
               key={chat.id}
               className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors cursor-pointer"

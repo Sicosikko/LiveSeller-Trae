@@ -156,3 +156,13 @@ export {
   SelectScrollUpButton,
   SelectScrollDownButton,
 }
+
+<Select>
+  <SelectTrigger>
+    <SelectValue placeholder="Selecione um período" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="day">Últimas 24h</SelectItem>
+    <SelectItem value="week">Última semana</SelectItem>
+  </SelectContent>
+</Select>

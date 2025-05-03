@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,11 +23,35 @@ interface DashboardControlsProps {
   activeTab: string;
 }
 
+/**
+ * Função utilitária para garantir que o SelectValue sempre tenha um valor válido
+ */
+const ensureSelectValue = (value: string | undefined, placeholder: string): string => {
+  if (!value) return placeholder;
+  
+  switch (value) {
+    case "7dias": return "Últimos 7 dias";
+    case "30dias": return "Últimos 30 dias";
+    case "90dias": return "Últimos 90 dias";
+    case "personalizado": return "Período personalizado";
+    default: return value;
+  }
+};
+
 const DashboardControls: React.FC<DashboardControlsProps> = ({ activeTab }) => {
   const [isPDFExportOpen, setIsPDFExportOpen] = useState(false);
   const [exportName, setExportName] = useState(`relatorio-${activeTab}-${new Date().toISOString().split('T')[0]}`);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [autoUpdate, setAutoUpdate] = useState(true);
+  const [period, setPeriod] = useState<string>("30dias");
+  
+  /**
+   * Manipula a mudança de período no filtro
+   */
+  const handlePeriodChange = (value: string) => {
+    setPeriod(value);
+    // Aqui poderia ser adicionada lógica adicional, como notificações ou chamadas de API
+  };
   
   return (
     <div className="fixed bottom-5 right-5 z-10">
@@ -143,9 +166,9 @@ const DashboardControls: React.FC<DashboardControlsProps> = ({ activeTab }) => {
               <div className="grid gap-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="date-range">Período</Label>
-                  <Select defaultValue="30dias">
+                  <Select defaultValue="30dias" onValueChange={handlePeriodChange}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione o período" />
+                      <SelectValue placeholder={ensureSelectValue(period, "Selecione o período")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="7dias">Últimos 7 dias</SelectItem>

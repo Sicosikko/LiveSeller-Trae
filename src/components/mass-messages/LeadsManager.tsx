@@ -1,161 +1,196 @@
 
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lead } from "@/types/lead";
-import LeadsSearchBar from "./leads/LeadsSearchBar";
-import LeadsActionButtons from "./leads/LeadsActionButtons";
-import LeadsBulkActions from "./leads/LeadsBulkActions";
-import LeadsList from "./leads/LeadsList";
-import LeadsPagination from "./leads/LeadsPagination";
-import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import React, { useEffect, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { ensureSelectValue } from '@/utils/selectUtils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Loader2, Search, Filter } from 'lucide-react';
+import { DataTable } from '@/components/ui/data-table';
 
-const LeadsManager: React.FC = () => {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [openTagDialog, setOpenTagDialog] = useState(false);
-  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    totalPages: 1,
-    totalItems: 0
-  });
+interface Lead {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  status: string;
+  lastContact: string;
+  tags: string[];
+}
+
+interface LeadsResponse {
+  leads: Lead[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+const LeadsManager = () => {
+  const [data, setData] = useState<LeadsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [status, setStatus] = useState('all');
+  const [page, setPage] = useState(1);
   const { toast } = useToast();
-  
-  useEffect(() => {
-    fetchLeads();
-  }, [pagination.page, searchTerm]);
-  
+
   const fetchLeads = async () => {
-    setLoading(true);
     try {
-      const response = await fetch(`/api/leads?page=${pagination.page}&search=${searchTerm}`);
-      if (!response.ok) throw new Error('Falha ao carregar leads');
-      const data = await response.json();
-      setLeads(data.leads);
-      setPagination({
-        page: data.page,
-        totalPages: data.totalPages,
-        totalItems: data.totalItems
-      });
+      setLoading(true);
+      const response = await fetch(
+        `/api/leads?search=${searchTerm}&status=${status}&page=${page}&pageSize=10`
+      );
+      if (!response.ok) throw new Error('Failed to fetch leads');
+      const result = await response.json();
+      setData(result);
     } catch (error) {
-      console.error('Erro ao carregar leads:', error);
       toast({
-        title: "Erro ao carregar leads",
-        description: "Não foi possível obter a lista de leads. Tente novamente.",
-        variant: "destructive"
+        title: 'Error loading leads',
+        description: 'Could not load leads data. Please try again.',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
   };
-  
-  const handleSelectLead = (id: string) => {
-    setSelectedLeads(prev => 
-      prev.includes(id)
-        ? prev.filter(leadId => leadId !== id)
-        : [...prev, id]
-    );
-  };
-  
-  const handleSelectAll = () => {
-    if (selectedLeads.length === leads.length) {
-      setSelectedLeads([]);
-    } else {
-      setSelectedLeads(leads.map(lead => lead.id));
-    }
-  };
-  
-  const handleBlockLeads = async () => {
+
+  const handleBlockLead = async (leadId: string) => {
     try {
-      const response = await fetch('/api/leads/block', {
+      const response = await fetch(`/api/leads/${leadId}/block`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ leadIds: selectedLeads }),
       });
-      
-      if (!response.ok) throw new Error('Falha ao bloquear leads');
-      
-      // Atualizar estado local
-      setLeads(prevLeads => 
-        prevLeads.map(lead => 
-          selectedLeads.includes(lead.id)
-            ? { ...lead, blocked: true }
-            : lead
-        )
-      );
+      if (!response.ok) throw new Error('Failed to block lead');
       
       toast({
-        title: "Leads bloqueados",
-        description: `${selectedLeads.length} leads foram bloqueados com sucesso.`,
+        title: 'Lead blocked',
+        description: 'The lead has been blocked successfully.',
       });
       
-      setBlockDialogOpen(false);
+      fetchLeads(); // Refresh the list
     } catch (error) {
-      console.error('Erro ao bloquear leads:', error);
       toast({
-        title: "Erro ao bloquear leads",
-        description: "Não foi possível bloquear os leads selecionados. Tente novamente.",
-        variant: "destructive"
+        title: 'Error blocking lead',
+        description: 'Could not block the lead. Please try again.',
+        variant: 'destructive',
       });
     }
   };
 
-  const clearSelection = () => {
-    setSelectedLeads([]);
-  };
+  useEffect(() => {
+    fetchLeads();
+  }, [searchTerm, status, page]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Gerenciamento de Leads</CardTitle>
-          <CardDescription>
-            Gerencie seus contatos para disparo, adicione tags e importe novos leads
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pb-0 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <LeadsSearchBar 
-              searchTerm={searchTerm} 
-              setSearchTerm={setSearchTerm} 
-              isLoading={loading}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Leads Management</h2>
+        <div className="flex gap-2">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Search leads..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-[200px]"
             />
-            <LeadsActionButtons onRefresh={fetchLeads} isLoading={loading} />
+            <Button variant="outline" size="icon">
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder={ensureSelectValue('Filter by status')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Leads</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="blocked">Blocked</SelectItem>
+              <SelectItem value="converted">Converted</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Leads List</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="p-2 text-left">Name</th>
+                  <th className="p-2 text-left">Contact</th>
+                  <th className="p-2 text-left">Status</th>
+                  <th className="p-2 text-left">Last Contact</th>
+                  <th className="p-2 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data?.leads.map((lead) => (
+                  <tr key={lead.id} className="border-b">
+                    <td className="p-2">{lead.name}</td>
+                    <td className="p-2">
+                      {lead.phone}<br/>
+                      <span className="text-sm text-muted-foreground">{lead.email}</span>
+                    </td>
+                    <td className="p-2">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        lead.status === 'active' ? 'bg-green-100 text-green-800' :
+                        lead.status === 'blocked' ? 'bg-red-100 text-red-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {lead.status}
+                      </span>
+                    </td>
+                    <td className="p-2">{lead.lastContact}</td>
+                    <td className="p-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBlockLead(lead.id)}
+                        disabled={lead.status === 'blocked'}
+                      >
+                        Block
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           
-          <LeadsBulkActions 
-            selectedLeads={selectedLeads}
-            openTagDialog={openTagDialog}
-            setOpenTagDialog={setOpenTagDialog}
-            blockDialogOpen={blockDialogOpen}
-            setBlockDialogOpen={setBlockDialogOpen}
-            handleBlockLeads={handleBlockLeads}
-            clearSelection={clearSelection}
-          />
-          
-          {loading ? (
-            <div className="flex justify-center items-center py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {data?.leads.length} of {data?.total} leads
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={data?.leads.length < 10}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Next
+              </Button>
             </div>
-          ) : (
-            <LeadsList 
-              leads={leads}
-              selectedLeads={selectedLeads}
-              handleSelectLead={handleSelectLead}
-              handleSelectAll={handleSelectAll}
-            />
-          )}
-          
-          <LeadsPagination 
-            currentPage={pagination.page}
-            totalPages={pagination.totalPages}
-            onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
-          />
+          </div>
         </CardContent>
       </Card>
     </div>

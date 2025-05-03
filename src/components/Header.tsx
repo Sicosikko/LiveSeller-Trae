@@ -1,5 +1,5 @@
 
-import React, { ReactNode } from "react";
+import React, { useState } from "react";
 import { Bell, User, Search, Settings, LogOut, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,16 +15,33 @@ import {
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDebounce } from '@/hooks/use-debounce';
+import { useToast } from '@/hooks/use-toast';
 
 interface HeaderProps {
   title?: string;
   isLoading?: boolean;
-  children?: ReactNode;
+  children?: React.ReactNode;
 }
 
 const Header: React.FC<HeaderProps> = ({ title = "Dashboard", isLoading = false, children }) => {
   const { t } = useLanguage();
   const { user, logout } = useAuth();
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const handleSearch = useDebounce(async (query: string) => {
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      // Implement real search logic
+    } catch (error) {
+      toast({
+        title: 'Search error',
+        description: 'Failed to perform search',
+        variant: 'destructive'
+      });
+    }
+  }, 500);
   
   // Get first name from user's email if available
   const userName = user?.email ? user.email.split('@')[0] : 'Usuário';
