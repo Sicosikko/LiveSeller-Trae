@@ -1,58 +1,54 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, Clock, Search, BellRing, Mail } from "lucide-react";
+import { Calendar, Clock, Search, BellRing, Mail, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { CalendarEvent } from "@/types/calendar";
 import { toast } from "@/hooks/use-toast";
-
-// Dados de exemplo
-const mockAppointments: CalendarEvent[] = [
-  {
-    id: "1",
-    title: "Reunião com Cliente",
-    description: "Apresentação de proposta comercial",
-    date: new Date(2025, 4, 5, 10, 0),
-    endDate: new Date(2025, 4, 5, 11, 0),
-    type: "meeting",
-    attendees: ["cliente@exemplo.com"],
-    teamMemberIds: ["1"],
-  },
-  {
-    id: "2",
-    title: "Demonstração do Produto",
-    description: "Demo do novo módulo de automação",
-    date: new Date(2025, 4, 7, 14, 30),
-    endDate: new Date(2025, 4, 7, 15, 30),
-    type: "demo",
-    attendees: ["prospect@exemplo.com"],
-    teamMemberIds: ["2"],
-  },
-  {
-    id: "3",
-    title: "Ligação de Follow-up",
-    description: "Verificar interesse após envio de proposta",
-    date: new Date(2025, 4, 10, 9, 0),
-    endDate: new Date(2025, 4, 10, 9, 30),
-    type: "call",
-    attendees: ["lead@exemplo.com"],
-    teamMemberIds: ["3"],
-  },
-];
-
-// Dados dos membros da equipe para exibição
-const teamMembers = {
-  "1": { name: "Amanda Costa", avatar: "" },
-  "2": { name: "Rafael Santos", avatar: "" },
-  "3": { name: "Juliana Almeida", avatar: "" },
-};
+import { fetchAppointments, sendAppointmentReminder, sendAppointmentDetails } from "@/services/calendarService";
+import { fetchTeamMembers } from "@/services/teamService";
 
 const UpcomingAppointments: React.FC = () => {
-  const [appointments, setAppointments] = useState<CalendarEvent[]>(mockAppointments);
+  const [appointments, setAppointments] = useState<CalendarEvent[]>([]);
+  const [teamMembers, setTeamMembers] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const loadAppointments = async () => {
+      setIsLoading(true);
+      try {
+        const [appointmentsData, teamData] = await Promise.all([
+          fetchAppointments(),
+          fetchTeamMembers()
+        ]);
+        
+        setAppointments(appointmentsData);
+        
+        // Converter array de membros da equipe para objeto indexado por ID
+        const teamMembersObj = teamData.reduce((acc, member) => {
+          acc[member.id] = member;
+          return acc;
+        }, {});
+        setTeamMembers(teamMembersObj);
+        
+      } catch (error) {
+        toast({
+          title: "Erro ao carregar compromissos",
+          description: "Não foi possível carregar seus compromissos agendados.",
+          variant: "destructive"
+        });
+        console.error("Erro ao carregar compromissos:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadAppointments();
+  }, []);
   
   // Filtrar os compromissos com base na pesquisa
   const filteredAppointments = appointments.filter(
@@ -65,11 +61,43 @@ const UpcomingAppointments: React.FC = () => {
   );
   
   // Enviar notificação de lembrete
-  const sendReminder = (appointmentId: string) => {
-    const appointment = appointments.find((a) => a.id === appointmentId);
-    if (!appointment) return;
-    
-    toast(`Lembrete enviado: Um lembrete foi enviado para os participantes do evento "${appointment.title}"`);
+  const sendReminder = async (appointmentId: string) => {
+    try {
+      await sendAppointmentReminder(appointmentId);
+      
+      const appointment = appointments.find((a) => a.id === appointmentId);
+      toast({
+        title: "Lembrete enviado",
+        description: `Um lembrete foi enviado para os participantes do evento "${appointment?.title}"`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao enviar lembrete",
+        description: "Não foi possível enviar o lembrete. Tente novamente.",
+        variant: "destructive"
+      });
+      console.error("Erro ao enviar lembrete:", error);
+    }
+  };
+  
+  // Enviar detalhes do compromisso por email
+  const sendDetails = async (appointmentId: string) => {
+    try {
+      await sendAppointmentDetails(appointmentId);
+      
+      const appointment = appointments.find((a) => a.id === appointmentId);
+      toast({
+        title: "Email enviado",
+        description: `Os detalhes do evento "${appointment?.title}" foram enviados por email.`
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao enviar email",
+        description: "Não foi possível enviar os detalhes por email. Tente novamente.",
+        variant: "destructive"
+      });
+      console.error("Erro ao enviar detalhes:", error);
+    }
   };
   
   // Obter o tipo de badge com base no tipo de evento
@@ -85,6 +113,15 @@ const UpcomingAppointments: React.FC = () => {
         return <Badge variant="outline">Evento</Badge>;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Carregando compromissos...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -121,75 +158,53 @@ const UpcomingAppointments: React.FC = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-medium">{appointment.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">{appointment.description}</p>
+                      <p className="text-sm text-muted-foreground">{appointment.description}</p>
                     </div>
                     {getEventBadge(appointment.type)}
                   </div>
                   
-                  <div className="flex flex-wrap gap-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{format(appointment.date, "dd/MM/yyyy")}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {format(appointment.date, "HH:mm")} - {format(appointment.endDate, "HH:mm")}
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span>{format(new Date(appointment.date), "dd/MM/yyyy")}</span>
+                    <Clock className="h-4 w-4 ml-2" />
+                    <span>
+                      {format(new Date(appointment.date), "HH:mm")} - {format(new Date(appointment.endDate), "HH:mm")}
+                    </span>
                   </div>
                   
-                  <div className="flex flex-col gap-2">
-                    <div className="text-sm font-medium">Participantes:</div>
-                    <div className="flex flex-wrap gap-2">
-                      {appointment.attendees.map((attendee, index) => (
-                        <Badge key={index} variant="secondary">
-                          {attendee}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col gap-2">
-                    <div className="text-sm font-medium">Membros da equipe:</div>
-                    <div className="flex gap-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex -space-x-2">
                       {appointment.teamMemberIds.map((memberId) => {
-                        const member = teamMembers[memberId as keyof typeof teamMembers];
+                        const member = teamMembers[memberId];
                         return (
-                          <Avatar key={memberId} className="h-7 w-7">
+                          <Avatar key={memberId} className="border-2 border-background h-8 w-8">
                             <AvatarImage src={member?.avatar} />
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                              {member?.name.split(" ").map((n) => n[0]).join("")}
+                            <AvatarFallback className="text-xs">
+                              {member?.name?.split(" ").map((n) => n[0]).join("") || "?"}
                             </AvatarFallback>
                           </Avatar>
                         );
                       })}
                     </div>
-                  </div>
-                  
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => sendReminder(appointment.id)}
-                      className="gap-1"
-                    >
-                      <BellRing className="h-4 w-4" />
-                      <span>Enviar lembrete</span>
-                    </Button>
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        toast(`Email enviado: Os detalhes do evento "${appointment.title}" foram enviados por email.`);
-                      }}
-                      className="gap-1"
-                    >
-                      <Mail className="h-4 w-4" />
-                      <span>Enviar detalhes</span>
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => sendReminder(appointment.id)}
+                      >
+                        <BellRing className="h-4 w-4 mr-1" />
+                        <span className="hidden sm:inline">Lembrete</span>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => sendDetails(appointment.id)}
+                      >
+                        <Mail className="h-4 w-4 mr-1" />
+                        <span className="hidden sm:inline">Detalhes</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>

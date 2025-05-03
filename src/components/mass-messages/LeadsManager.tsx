@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lead } from "@/types/lead";
 import LeadsSearchBar from "./leads/LeadsSearchBar";
@@ -7,78 +7,50 @@ import LeadsActionButtons from "./leads/LeadsActionButtons";
 import LeadsBulkActions from "./leads/LeadsBulkActions";
 import LeadsList from "./leads/LeadsList";
 import LeadsPagination from "./leads/LeadsPagination";
-
-// Mock data
-const mockLeads: Lead[] = [
-  {
-    id: "1",
-    name: "João Silva",
-    phone: "+5511999887766",
-    email: "joao.silva@example.com",
-    company: "Tech Solutions",
-    city: "São Paulo",
-    tags: ["Cliente", "Premium"],
-    blocked: false,
-    lastContact: "2025-06-20T14:30:00"
-  },
-  {
-    id: "2",
-    name: "Maria Oliveira",
-    phone: "+5511988776655",
-    email: "maria.oliveira@example.com",
-    company: "Digital Marketing",
-    city: "Rio de Janeiro",
-    tags: ["Lead", "Interesse em Produto B"],
-    blocked: false,
-    lastContact: "2025-06-19T10:15:00"
-  },
-  {
-    id: "3",
-    name: "Carlos Santos",
-    phone: "+5511977665544",
-    email: "carlos.santos@example.com",
-    company: "Retail Store",
-    city: "Curitiba",
-    tags: ["Prospect", "Frio"],
-    blocked: true,
-    lastContact: "2025-06-15T09:45:00"
-  },
-  {
-    id: "4",
-    name: "Ana Ferreira",
-    phone: "+5511966554433",
-    email: "ana.ferreira@example.com",
-    company: "Health Services",
-    city: "Belo Horizonte",
-    tags: ["Cliente", "Regular"],
-    blocked: false,
-    lastContact: "2025-06-22T16:20:00"
-  },
-  {
-    id: "5",
-    name: "Paulo Costa",
-    phone: "+5511955443322",
-    email: "paulo.costa@example.com",
-    company: "Education Center",
-    city: "Brasília",
-    tags: ["Lead", "Quente"],
-    blocked: false,
-    lastContact: "2025-06-21T11:05:00"
-  }
-];
+import { useToast } from "@/components/ui/use-toast";
+import { Loader2 } from "lucide-react";
 
 const LeadsManager: React.FC = () => {
-  const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [openTagDialog, setOpenTagDialog] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    totalPages: 1,
+    totalItems: 0
+  });
+  const { toast } = useToast();
   
-  const filteredLeads = leads.filter(lead => 
-    lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    fetchLeads();
+  }, [pagination.page, searchTerm]);
+  
+  const fetchLeads = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/leads?page=${pagination.page}&search=${searchTerm}`);
+      if (!response.ok) throw new Error('Falha ao carregar leads');
+      const data = await response.json();
+      setLeads(data.leads);
+      setPagination({
+        page: data.page,
+        totalPages: data.totalPages,
+        totalItems: data.totalItems
+      });
+    } catch (error) {
+      console.error('Erro ao carregar leads:', error);
+      toast({
+        title: "Erro ao carregar leads",
+        description: "Não foi possível obter a lista de leads. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const handleSelectLead = (id: string) => {
     setSelectedLeads(prev => 
@@ -89,22 +61,48 @@ const LeadsManager: React.FC = () => {
   };
   
   const handleSelectAll = () => {
-    if (selectedLeads.length === filteredLeads.length) {
+    if (selectedLeads.length === leads.length) {
       setSelectedLeads([]);
     } else {
-      setSelectedLeads(filteredLeads.map(lead => lead.id));
+      setSelectedLeads(leads.map(lead => lead.id));
     }
   };
   
-  const handleBlockLeads = () => {
-    setLeads(prevLeads => 
-      prevLeads.map(lead => 
-        selectedLeads.includes(lead.id)
-          ? { ...lead, blocked: true }
-          : lead
-      )
-    );
-    setBlockDialogOpen(false);
+  const handleBlockLeads = async () => {
+    try {
+      const response = await fetch('/api/leads/block', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ leadIds: selectedLeads }),
+      });
+      
+      if (!response.ok) throw new Error('Falha ao bloquear leads');
+      
+      // Atualizar estado local
+      setLeads(prevLeads => 
+        prevLeads.map(lead => 
+          selectedLeads.includes(lead.id)
+            ? { ...lead, blocked: true }
+            : lead
+        )
+      );
+      
+      toast({
+        title: "Leads bloqueados",
+        description: `${selectedLeads.length} leads foram bloqueados com sucesso.`,
+      });
+      
+      setBlockDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao bloquear leads:', error);
+      toast({
+        title: "Erro ao bloquear leads",
+        description: "Não foi possível bloquear os leads selecionados. Tente novamente.",
+        variant: "destructive"
+      });
+    }
   };
 
   const clearSelection = () => {
@@ -125,8 +123,9 @@ const LeadsManager: React.FC = () => {
             <LeadsSearchBar 
               searchTerm={searchTerm} 
               setSearchTerm={setSearchTerm} 
+              isLoading={loading}
             />
-            <LeadsActionButtons />
+            <LeadsActionButtons onRefresh={fetchLeads} isLoading={loading} />
           </div>
           
           <LeadsBulkActions 
@@ -139,19 +138,25 @@ const LeadsManager: React.FC = () => {
             clearSelection={clearSelection}
           />
           
-          <LeadsList 
-            leads={filteredLeads}
-            selectedLeads={selectedLeads}
-            handleSelectLead={handleSelectLead}
-            handleSelectAll={handleSelectAll}
+          {loading ? (
+            <div className="flex justify-center items-center py-10">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <LeadsList 
+              leads={leads}
+              selectedLeads={selectedLeads}
+              handleSelectLead={handleSelectLead}
+              handleSelectAll={handleSelectAll}
+            />
+          )}
+          
+          <LeadsPagination 
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={(page) => setPagination(prev => ({ ...prev, page }))}
           />
         </CardContent>
-        <CardFooter className="pt-4">
-          <LeadsPagination 
-            filteredCount={filteredLeads.length} 
-            totalCount={leads.length} 
-          />
-        </CardFooter>
       </Card>
     </div>
   );

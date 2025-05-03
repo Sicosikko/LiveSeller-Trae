@@ -63,6 +63,44 @@ const bestProductsData = [
 
 const ConversionAnalytics: React.FC<ConversionAnalyticsProps> = ({ dateRange }) => {
   const [timeframe, setTimeframe] = useState("14dias");
+  const [loading, setLoading] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState({
+    conversionRate: 0,
+    conversionRateChange: 0,
+    averageValue: 0,
+    averageValueChange: 0,
+    totalConversions: 0,
+    totalConversionsChange: 0,
+    revenue: 0,
+    revenueChange: 0,
+    conversionRateData: [],
+    conversionByChannelData: [],
+    conversionByMessageTypeData: [],
+    conversionFunnelData: []
+  });
+  
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/analytics/conversion?timeframe=${timeframe}`);
+        if (!response.ok) throw new Error('Falha ao carregar dados de análise');
+        const data = await response.json();
+        setAnalyticsData(data);
+      } catch (error) {
+        console.error('Erro ao carregar dados de análise:', error);
+        toast({
+          title: "Erro ao carregar dados",
+          description: "Não foi possível obter os dados de análise. Tente novamente.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchAnalyticsData();
+  }, [timeframe]);
 
   return (
     <div className="space-y-6">
@@ -80,293 +118,165 @@ const ConversionAnalytics: React.FC<ConversionAnalyticsProps> = ({ dateRange }) 
               <SelectItem value="90dias">Últimos 90 dias</SelectItem>
             </SelectContent>
           </Select>
+          
+          <Button variant="outline" onClick={() => window.print()} disabled={loading}>
+            <Download className="h-4 w-4 mr-2" />
+            Exportar
+          </Button>
+          
+          <Button variant="outline" onClick={() => fetchAnalyticsData()} disabled={loading}>
+            <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Taxa de Conversão</CardDescription>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <CardTitle className="text-3xl font-bold">32.5%</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <ArrowUpRight className="h-3 w-3 text-emerald-500 mr-1" />
-              <span className="text-emerald-500 font-medium">+3.2%</span>
-              <span className="ml-1">vs. período anterior</span>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Valor Médio de Conversão</CardDescription>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <CardTitle className="text-3xl font-bold">R$420</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <ArrowUpRight className="h-3 w-3 text-emerald-500 mr-1" />
-              <span className="text-emerald-500 font-medium">+5.8%</span>
-              <span className="ml-1">vs. período anterior</span>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Conversões Totais</CardDescription>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <CardTitle className="text-3xl font-bold">320</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <ArrowUpRight className="h-3 w-3 text-emerald-500 mr-1" />
-              <span className="text-emerald-500 font-medium">+8.3%</span>
-              <span className="ml-1">vs. período anterior</span>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardDescription>Receita de Conversões</CardDescription>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <CardTitle className="text-3xl font-bold">R$134.4k</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <ArrowUpRight className="h-3 w-3 text-emerald-500 mr-1" />
-              <span className="text-emerald-500 font-medium">+12.5%</span>
-              <span className="ml-1">vs. período anterior</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Taxa de Conversão Diária</CardTitle>
-                <CardDescription>Evolução nos últimos 14 dias (%)</CardDescription>
-              </div>
-              <ExportReportButton data={conversionRateData} reportName="taxa-conversao-diaria" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={conversionRateData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="dia" />
-                  <YAxis domain={[0, 50]} />
-                  <Tooltip 
-                    formatter={(value) => [`${value}%`, "Taxa de Conversão"]}
-                    contentStyle={{ 
-                      backgroundColor: "rgba(255, 255, 255, 0.95)", 
-                      borderRadius: "8px", 
-                      boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-                      border: "none"
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="taxa"
-                    stroke="#1E3A8A"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Conversão por Canal</CardTitle>
-                <CardDescription>Taxa de conversão por canal de comunicação (%)</CardDescription>
-              </div>
-              <ExportReportButton data={conversionByChannelData} reportName="conversao-por-canal" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart 
-                  data={conversionByChannelData} 
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="canal" />
-                  <Tooltip 
-                    formatter={(value) => [`${value}%`, "Taxa de Conversão"]}
-                    contentStyle={{ 
-                      backgroundColor: "rgba(255, 255, 255, 0.95)", 
-                      borderRadius: "8px", 
-                      boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-                      border: "none"
-                    }}
-                  />
-                  <Bar 
-                    dataKey="taxa" 
-                    name="Taxa de Conversão" 
-                    radius={[0, 4, 4, 0]}
-                  >
-                    {conversionByChannelData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.cor} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Conversão por Tipo de Mensagem</CardTitle>
-                <CardDescription>Taxa de conversão por tipo de conteúdo</CardDescription>
-              </div>
-              <ExportReportButton data={conversionByMessageTypeData} reportName="conversao-por-tipo" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={conversionByMessageTypeData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="taxa"
-                    nameKey="tipo"
-                    labelLine={false}
-                    label={({ tipo, percent }) => `${tipo}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {conversionByMessageTypeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.cor} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value) => [`${value}%`, "Taxa de Conversão"]}
-                    contentStyle={{ 
-                      backgroundColor: "rgba(255, 255, 255, 0.95)", 
-                      borderRadius: "8px", 
-                      boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-                      border: "none"
-                    }}
-                  />
-                  <Legend layout="horizontal" verticalAlign="bottom" align="center" />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Funil de Conversão</CardTitle>
-                <CardDescription>Jornada de conversão do cliente</CardDescription>
-              </div>
-              <ExportReportButton data={conversionFunnelData} reportName="funil-conversao" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {conversionFunnelData.map((item, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex justify-between">
-                    <div className="flex items-center">
-                      <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: item.cor }}></div>
-                      <span className="text-sm font-medium">{item.etapa}</span>
-                    </div>
-                    <span className="text-sm font-medium">{item.quantidade}</span>
-                  </div>
-                  <Progress 
-                    value={(item.quantidade / conversionFunnelData[0].quantidade) * 100} 
-                    className="h-2"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}
-                  >
-                    <div 
-                      className="h-full transition-all" 
-                      style={{ width: `${(item.quantidade / conversionFunnelData[0].quantidade) * 100}%`, backgroundColor: item.cor }}
-                    />
-                  </Progress>
-                  {index < conversionFunnelData.length - 1 && (
-                    <div className="text-xs text-muted-foreground flex justify-end">
-                      {((conversionFunnelData[index + 1].quantidade / item.quantidade) * 100).toFixed(1)}% 
-                      <span className="ml-1">conversão para próxima etapa</span>
-                    </div>
+      {loading ? (
+        <div className="flex justify-center items-center h-40">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardDescription>Taxa de Conversão</CardDescription>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <CardTitle className="text-3xl font-bold">{analyticsData.conversionRate.toFixed(1)}%</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center text-xs text-muted-foreground">
+                  {analyticsData.conversionRateChange > 0 ? (
+                    <>
+                      <ArrowUpRight className="h-3 w-3 text-emerald-500 mr-1" />
+                      <span className="text-emerald-500 font-medium">+{analyticsData.conversionRateChange.toFixed(1)}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
+                      <span className="text-red-500 font-medium">{analyticsData.conversionRateChange.toFixed(1)}%</span>
+                    </>
                   )}
+                  <span className="ml-1">vs. período anterior</span>
                 </div>
-              ))}
-
-              <div className="mt-4 pt-4 border-t">
-                <div className="text-sm font-medium flex items-center justify-between">
-                  <span>Taxa de conversão total</span>
-                  <span className="text-green-600">
-                    {((conversionFunnelData[conversionFunnelData.length - 1].quantidade / conversionFunnelData[0].quantidade) * 100).toFixed(1)}%
-                  </span>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardDescription>Valor Médio de Conversão</CardDescription>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Produtos com Melhor Conversão</CardTitle>
-              <CardDescription>Taxas de conversão por produto/serviço (%)</CardDescription>
-            </div>
-            <ExportReportButton data={bestProductsData} reportName="produtos-melhor-conversao" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {bestProductsData.map((product, index) => (
-              <div key={index} className="space-y-2">
-                <div className="flex justify-between">
-                  <div className="flex items-center">
-                    <Circle className="h-3 w-3 mr-2 fill-current text-primary" />
-                    <span className="font-medium">{product.produto}</span>
+                <CardTitle className="text-3xl font-bold">R${analyticsData.averageValue}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center text-xs text-muted-foreground">
+                  {analyticsData.averageValueChange > 0 ? (
+                    <>
+                      <ArrowUpRight className="h-3 w-3 text-emerald-500 mr-1" />
+                      <span className="text-emerald-500 font-medium">+{analyticsData.averageValueChange.toFixed(1)}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
+                      <span className="text-red-500 font-medium">{analyticsData.averageValueChange.toFixed(1)}%</span>
+                    </>
+                  )}
+                  <span className="ml-1">vs. período anterior</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Restante dos cards com dados dinâmicos */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Taxa de Conversão Diária</CardTitle>
+                    <CardDescription>Evolução nos últimos 14 dias (%)</CardDescription>
                   </div>
-                  <span className="font-medium">{product.taxa}%</span>
+                  <ExportReportButton data={conversionRateData} reportName="taxa-conversao-diaria" />
                 </div>
-                <Progress value={product.taxa} className="h-2" />
-              </div>
-            ))}
+              </CardHeader>
+              <CardContent>
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={conversionRateData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="dia" />
+                      <YAxis domain={[0, 50]} />
+                      <Tooltip 
+                        formatter={(value) => [`${value}%`, "Taxa de Conversão"]}
+                        contentStyle={{ 
+                          backgroundColor: "rgba(255, 255, 255, 0.95)", 
+                          borderRadius: "8px", 
+                          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
+                          border: "none"
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="taxa"
+                        stroke="#1E3A8A"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Conversão por Canal</CardTitle>
+                    <CardDescription>Taxa de conversão por canal de comunicação (%)</CardDescription>
+                  </div>
+                  <ExportReportButton data={conversionByChannelData} reportName="conversao-por-canal" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart 
+                      data={conversionByChannelData} 
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                      <XAxis type="number" />
+                      <YAxis type="category" dataKey="canal" />
+                      <Tooltip 
+                        formatter={(value) => [`${value}%`, "Taxa de Conversão"]}
+                        contentStyle={{ 
+                          backgroundColor: "rgba(255, 255, 255, 0.95)", 
+                          borderRadius: "8px", 
+                          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
+                          border: "none"
+                        }}
+                      />
+                      <Bar 
+                        dataKey="taxa" 
+                        name="Taxa de Conversão" 
+                        radius={[0, 4, 4, 0]}
+                      >
+                        {conversionByChannelData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.cor} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </>
+      )}
     </div>
   );
 };

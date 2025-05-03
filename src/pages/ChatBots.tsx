@@ -187,10 +187,10 @@ const ChatBots: React.FC = () => {
                     <div className="flex gap-2">
                       {bot.status === "active" && (
                         <>
-                          <Button variant="ghost" size="sm" className="h-8 text-xs">
+                          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate(`/chatbots/${bot.id}/analytics`)}>
                             <BarChart2 className="h-3.5 w-3.5 mr-1" /> Analytics
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-8 text-xs">
+                          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => navigate(`/chatbots/${bot.id}/conversations`)}>
                             <MessageSquare className="h-3.5 w-3.5 mr-1" /> Conversas
                           </Button>
                         </>

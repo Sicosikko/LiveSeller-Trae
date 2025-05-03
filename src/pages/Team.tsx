@@ -98,8 +98,9 @@ const Team: React.FC = () => {
   };
   
   const handleViewChats = (id: string) => {
-    // Em uma aplicação real, redirecionaria para a página de conversas do membro
-    toast("Visualização de conversas: Redirecionando para conversas do membro (funcionalidade em desenvolvimento).");
+    // Corrigindo a rota para visualizar conversas do membro
+    navigate(`/atendimento/agente/${id}`);
+    toast("Redirecionando para conversas do membro");
   };
   
   const handleCreateTask = () => {

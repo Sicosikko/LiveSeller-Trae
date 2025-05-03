@@ -1,8 +1,10 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, Users, MessageSquare, ArrowUpRight, Bot, Clock } from "lucide-react";
+import { Activity, Users, MessageSquare, ArrowUpRight, Bot, Clock, Loader2 } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { fetchCompanyOverview, fetchOperationalStatus } from "@/services/adminService";
+import { useToast } from "@/hooks/use-toast";
 
 const companyOverviewData = [
   {
@@ -44,18 +46,78 @@ const companyOverviewData = [
 ];
 
 const AdminOverview = () => {
+  const [companyOverviewData, setCompanyOverviewData] = useState([]);
+  const [clientsTotal, setClientsTotal] = useState(0);
+  const [clientsGrowth, setClientsGrowth] = useState(0);
+  const [revenue, setRevenue] = useState("");
+  const [revenueGrowth, setRevenueGrowth] = useState(0);
+  const [conversionRate, setConversionRate] = useState(0);
+  const [conversionGrowth, setConversionGrowth] = useState(0);
+  const [avgResponseTime, setAvgResponseTime] = useState("");
+  const [responseTimeChange, setResponseTimeChange] = useState(0);
+  const [teamStatus, setTeamStatus] = useState(null);
+  const [chatStatus, setChatStatus] = useState(null);
+  const [botStatus, setBotStatus] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const loadOverviewData = async () => {
+      setIsLoading(true);
+      try {
+        // Carregar dados gerais da empresa
+        const overviewData = await fetchCompanyOverview();
+        setCompanyOverviewData(overviewData.chartData);
+        setClientsTotal(overviewData.metrics.clientsTotal);
+        setClientsGrowth(overviewData.metrics.clientsGrowth);
+        setRevenue(overviewData.metrics.revenue);
+        setRevenueGrowth(overviewData.metrics.revenueGrowth);
+        setConversionRate(overviewData.metrics.conversionRate);
+        setConversionGrowth(overviewData.metrics.conversionGrowth);
+        setAvgResponseTime(overviewData.metrics.avgResponseTime);
+        setResponseTimeChange(overviewData.metrics.responseTimeChange);
+        
+        // Carregar status operacional
+        const statusData = await fetchOperationalStatus();
+        setTeamStatus(statusData.team);
+        setChatStatus(statusData.chats);
+        setBotStatus(statusData.bots);
+      } catch (error) {
+        toast({
+          title: "Erro ao carregar dados",
+          description: "Não foi possível carregar os dados do painel administrativo.",
+          variant: "destructive"
+        });
+        console.error("Erro ao carregar dados:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadOverviewData();
+  }, [toast]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Carregando dados administrativos...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total de Clientes</CardDescription>
-            <CardTitle className="text-4xl font-bold">2,843</CardTitle>
+            <CardTitle className="text-4xl font-bold">{clientsTotal.toLocaleString()}</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="flex items-center text-sm text-muted-foreground">
               <ArrowUpRight className="mr-1 h-4 w-4 text-emerald-500" />
-              <span className="text-emerald-500 font-medium">+15.8%</span>
+              <span className="text-emerald-500 font-medium">+{clientsGrowth}%</span>
               <span className="ml-1">vs. mês anterior</span>
             </div>
           </CardContent>
@@ -64,12 +126,12 @@ const AdminOverview = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Faturamento Mensal</CardDescription>
-            <CardTitle className="text-4xl font-bold">R$78.5K</CardTitle>
+            <CardTitle className="text-4xl font-bold">{revenue}</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="flex items-center text-sm text-muted-foreground">
               <ArrowUpRight className="mr-1 h-4 w-4 text-emerald-500" />
-              <span className="text-emerald-500 font-medium">+12.3%</span>
+              <span className="text-emerald-500 font-medium">+{revenueGrowth}%</span>
               <span className="ml-1">vs. mês anterior</span>
             </div>
           </CardContent>
@@ -78,12 +140,12 @@ const AdminOverview = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Taxa de Conversão</CardDescription>
-            <CardTitle className="text-4xl font-bold">32.7%</CardTitle>
+            <CardTitle className="text-4xl font-bold">{conversionRate}%</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="flex items-center text-sm text-muted-foreground">
               <ArrowUpRight className="mr-1 h-4 w-4 text-emerald-500" />
-              <span className="text-emerald-500 font-medium">+3.2%</span>
+              <span className="text-emerald-500 font-medium">+{conversionGrowth}%</span>
               <span className="ml-1">vs. mês anterior</span>
             </div>
           </CardContent>
@@ -92,12 +154,12 @@ const AdminOverview = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Tempo Médio de Atendimento</CardDescription>
-            <CardTitle className="text-4xl font-bold">3m 24s</CardTitle>
+            <CardTitle className="text-4xl font-bold">{avgResponseTime}</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="flex items-center text-sm text-muted-foreground">
               <Clock className="mr-1 h-4 w-4 text-amber-500" />
-              <span className="text-amber-500 font-medium">-5.1%</span>
+              <span className="text-amber-500 font-medium">{responseTimeChange}%</span>
               <span className="ml-1">vs. mês anterior</span>
             </div>
           </CardContent>
@@ -142,15 +204,15 @@ const AdminOverview = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Online</span>
-                      <span className="font-semibold">8 / 12</span>
+                      <span className="font-semibold">{teamStatus?.online} / {teamStatus?.total}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Em atendimento</span>
-                      <span className="font-semibold">5</span>
+                      <span className="font-semibold">{teamStatus?.inService}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Em pausa</span>
-                      <span className="font-semibold">2</span>
+                      <span className="font-semibold">{teamStatus?.onPause}</span>
                     </div>
                   </div>
                 </div>
@@ -163,15 +225,15 @@ const AdminOverview = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Em andamento</span>
-                      <span className="font-semibold">24</span>
+                      <span className="font-semibold">{chatStatus?.inProgress}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Na fila</span>
-                      <span className="font-semibold">7</span>
+                      <span className="font-semibold">{chatStatus?.inQueue}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Concluídos hoje</span>
-                      <span className="font-semibold">143</span>
+                      <span className="font-semibold">{chatStatus?.completedToday}</span>
                     </div>
                   </div>
                 </div>
@@ -186,15 +248,15 @@ const AdminOverview = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Ativos</span>
-                      <span className="font-semibold">5 / 6</span>
+                      <span className="font-semibold">{botStatus?.active} / {botStatus?.total}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Conversas</span>
-                      <span className="font-semibold">187</span>
+                      <span className="font-semibold">{botStatus?.conversations}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Taxa de resolução</span>
-                      <span className="font-semibold">78%</span>
+                      <span className="font-semibold">{botStatus?.resolutionRate}%</span>
                     </div>
                   </div>
                 </div>

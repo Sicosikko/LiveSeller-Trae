@@ -60,8 +60,13 @@ const WebSocketMonitor: React.FC<WebSocketMonitorProps> = ({
             </CardDescription>
           </div>
           {onRefresh && (
-            <Button variant="outline" size="sm" onClick={onRefresh}>
-              <RefreshCcw className="h-4 w-4 mr-2" />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onRefresh} 
+              disabled={isRefreshing}
+            >
+              <RefreshCcw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
           )}

@@ -8,8 +8,10 @@ import { VitePWA } from 'vite-plugin-pwa';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
-    port: 8080,
+    host: true, // Isso permite acesso de qualquer IP, incluindo localhost
+    port: 8081,
+    strictPort: false, // Permite tentar portas alternativas se 8081 estiver em uso
+    open: '/', // Abre o navegador na rota raiz ao iniciar
   },
   plugins: [
     react(),
@@ -19,8 +21,8 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
-        name: 'WhatzApp Flow CRM AI',
-        short_name: 'WhatzApp',
+        name: 'LiveSeller',
+        short_name: 'LiveSeller',
         description: 'Plataforma de gestão de comunicação e CRM com assistência por IA',
         theme_color: '#1a5fb4',
         icons: [

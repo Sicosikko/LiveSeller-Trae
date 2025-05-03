@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +12,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import { fetchDashboardCharts, fetchDashboardLayouts, saveDashboard } from "@/services/dashboardService";
+import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
 
 interface CustomDashboardProps {
   dateRange: {
@@ -20,41 +24,47 @@ interface CustomDashboardProps {
   };
 }
 
-// Componentes de gráfico disponíveis para adicionar
-const availableCharts = [
-  { id: "chart-messages", name: "Mensagens por Canal", type: "bar", size: "medium" },
-  { id: "chart-clients", name: "Distribuição de Clientes", type: "pie", size: "small" },
-  { id: "chart-conversion", name: "Taxa de Conversão", type: "line", size: "medium" },
-  { id: "chart-team", name: "Desempenho da Equipe", type: "bar", size: "medium" },
-  { id: "chart-revenue", name: "Receita por Produto", type: "bar", size: "large" },
-  { id: "chart-regions", name: "Clientes por Região", type: "map", size: "large" },
-  { id: "chart-sentiment", name: "Análise de Sentimento", type: "pie", size: "small" },
-  { id: "chart-funnel", name: "Funil de Vendas", type: "funnel", size: "medium" },
-  { id: "chart-hours", name: "Atendimentos por Hora", type: "line", size: "medium" },
-];
-
-// Layouts de dashboard pré-configurados
-const dashboardLayouts = [
-  { id: "overview", name: "Visão Geral", icon: "layout" },
-  { id: "sales", name: "Vendas", icon: "dollar" },
-  { id: "customer", name: "Clientes", icon: "users" },
-  { id: "messages", name: "Mensagens", icon: "message-square" },
-  { id: "blank", name: "Em Branco", icon: "plus" },
-];
-
 const CustomDashboard: React.FC<CustomDashboardProps> = ({ dateRange }) => {
   const [selectedLayout, setSelectedLayout] = useState("overview");
-  const [dashboardName, setDashboardName] = useState("Meu Dashboard Personalizado");
+  const [dashboardName, setDashboardName] = useState("Meu Dashboard");
   const [editingTitle, setEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(dashboardName);
+  const [availableCharts, setAvailableCharts] = useState([]);
+  const [dashboardLayouts, setDashboardLayouts] = useState([]);
+  const [dashboardItems, setDashboardItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
   
-  // Simula componentes presentes neste dashboard
-  const [dashboardItems, setDashboardItems] = useState([
-    { id: "chart-1", component: "chart-messages", name: "Mensagens por Canal", size: "medium" },
-    { id: "chart-2", component: "chart-clients", name: "Distribuição de Clientes", size: "small" },
-    { id: "chart-3", component: "chart-conversion", name: "Taxa de Conversão", size: "medium" },
-    { id: "chart-4", component: "chart-team", name: "Desempenho da Equipe", size: "large" },
-  ]);
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      setIsLoading(true);
+      try {
+        const [chartsData, layoutsData] = await Promise.all([
+          fetchDashboardCharts(),
+          fetchDashboardLayouts()
+        ]);
+        
+        setAvailableCharts(chartsData);
+        setDashboardLayouts(layoutsData);
+        
+        // Carregar itens do layout selecionado
+        const selectedItems = layoutsData.find(layout => layout.id === selectedLayout)?.items || [];
+        setDashboardItems(selectedItems);
+        
+      } catch (error) {
+        toast({
+          title: "Erro ao carregar dashboard",
+          description: "Não foi possível carregar os dados do dashboard. Tente novamente.",
+          variant: "destructive"
+        });
+        console.error("Erro ao carregar dashboard:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadDashboardData();
+  }, [selectedLayout, toast]);
   
   // Manipula reordenação dos itens via drag-and-drop
   const handleDragEnd = (result: any) => {
@@ -69,6 +79,11 @@ const CustomDashboard: React.FC<CustomDashboardProps> = ({ dateRange }) => {
   
   const handleRemoveItem = (id: string) => {
     setDashboardItems(dashboardItems.filter(item => item.id !== id));
+    
+    toast({
+      title: "Item removido",
+      description: "O componente foi removido do dashboard."
+    });
   };
   
   const handleAddNewChart = (chartId: string) => {
@@ -83,18 +98,62 @@ const CustomDashboard: React.FC<CustomDashboardProps> = ({ dateRange }) => {
           size: chartToAdd.size
         }
       ]);
+      
+      toast({
+        title: "Componente adicionado",
+        description: `${chartToAdd.name} foi adicionado ao dashboard.`
+      });
     }
   };
   
   const handleTitleSave = () => {
     setDashboardName(tempTitle);
     setEditingTitle(false);
+    
+    toast({
+      title: "Nome atualizado",
+      description: "O nome do dashboard foi atualizado com sucesso."
+    });
   };
   
   const handleTitleCancel = () => {
     setTempTitle(dashboardName);
     setEditingTitle(false);
   };
+  
+  const handleSaveDashboard = async () => {
+    setIsLoading(true);
+    try {
+      await saveDashboard({
+        id: selectedLayout,
+        name: dashboardName,
+        items: dashboardItems
+      });
+      
+      toast({
+        title: "Dashboard salvo",
+        description: "Suas alterações foram salvas com sucesso."
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar o dashboard. Tente novamente.",
+        variant: "destructive"
+      });
+      console.error("Erro ao salvar dashboard:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  if (isLoading && dashboardItems.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Carregando dashboard...</span>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
@@ -180,9 +239,22 @@ const CustomDashboard: React.FC<CustomDashboardProps> = ({ dateRange }) => {
             </DialogContent>
           </Dialog>
           
-          <Button variant="default">
-            <Save className="h-4 w-4 mr-2" />
-            Salvar Dashboard
+          <Button 
+            variant="default" 
+            onClick={handleSaveDashboard}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Salvar Dashboard
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -292,8 +364,8 @@ const CustomDashboard: React.FC<CustomDashboardProps> = ({ dateRange }) => {
   );
 };
 
-// Componente Badge para usar nos items do dialog
-const Badge = ({ className, children }: { className?: string, children: React.ReactNode }) => {
+// At the bottom of the file, rename the custom Badge component to CustomBadge
+const CustomBadge = ({ className, children }: { className?: string, children: React.ReactNode }) => {
   return (
     <span className={cn("px-2 py-1 rounded-md text-xs font-medium", className)}>
       {children}

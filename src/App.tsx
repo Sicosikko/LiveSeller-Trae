@@ -8,7 +8,6 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import NotFound from "@/pages/NotFound";
 import RouteManager from "@/components/routing/RouteManager";
 import OfflineAlert from "@/components/feedback/OfflineAlert";
-import WebViewPage from "@/pages/WebViewPage";
 
 // Lazy loaded components
 const Index = lazy(() => import("@/pages/Index"));
@@ -170,7 +169,6 @@ function App() {
               <WhatsAppCommerce />
             </ProtectedRoute>
           } />
-          <Route path="/webview" element={<WebViewPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
